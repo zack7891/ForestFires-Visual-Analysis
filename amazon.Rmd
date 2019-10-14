@@ -1,6 +1,15 @@
 ---
 title: "Forest Fires Visual Analysis"
+author: "Zachary Baker"
+date: "`r Sys.Date()`"
+knit: (function(input_file, encoding) {
+  out_dir <- 'docs';
+  rmarkdown::render(input_file,
+ encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'index.html'))})
+output: html_document
 ---
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -28,21 +37,29 @@ summary(amazon)
 glimpse(amazon)
 
 ```
+```{r}
+print("Visualizing Data")
+```
 
 ```{r, echo=FALSE}
-#Visualizing Data
 a <- ggplot(amazon,aes(year,number))
 a + geom_bar(stat='identity',aes(fill = state))
 ```
 ```{r}
-#Line graph showing the amount of forest fires per year
+print("Line graph showing the amount of forest fires per year")
+```
+
+```{r}
 df.amazon_1 <- amazon %>% group_by(year)%>% 
         summarise(numberperyear = round(sum(number)))%>% 
         ggplot(aes(x = year, y = numberperyear)) + geom_line()
 df.amazon_1
 ```
+```{r}
+print("Scatter Plot showing the occource of forest fires by state and year")
+```
+
 ```{r, echo=FALSE}
-#Scatter Plot showing the occource of forest fires by state and year
 plot_ly(x = amazon$year, 
         y = amazon$state,
         type = 'scatter',
@@ -51,21 +68,33 @@ plot_ly(x = amazon$year,
         marker = list(
           color = amazon$year))
 ```
-```{r, echo=FALSE}
-#Bar plot showing the total number of forest fires by region
-plot_ly(data = amazon, x = ~state  , y = ~number, type = 'bar')
+```{r}
+print("Bar plot showing the total number of forest fires by region")
+```
 
+```{r, echo=FALSE}
+plot_ly(data = amazon, x = ~state  , y = ~number, type = 'bar')
 ```
 ```{r}
-#New dataframe with fires sum up by year and state
+print("New dataframe with fires sum up by year and state")
+```
+
+```{r}
 df.amazon <- amazon %>% group_by(year, state) %>% summarise(fires = sum(number))
 ```
+```{r}
+print("Heatmap of fires by location and year")
+```
+
 ```{r, echo=FALSE}
-#Heatmap of fires by location and year
 plot_ly(x=df.amazon$year,y=df.amazon$state,z=df.amazon$fires,type ="heatmap")
 ```
+```{r}
+print("An animation showing the amount of fires over the years of each state in brazil")
+```
+
 ```{r, echo=FALSE}
-#An animation showing the amount of fires over the years of each state in brazil
+
 ggplot(df.amazon, aes(year,fires, size = fires, colour = state)) +
         geom_point(alpha = 0.7, show.legend = FALSE) +
         facet_wrap(~state) +
@@ -74,14 +103,17 @@ ggplot(df.amazon, aes(year,fires, size = fires, colour = state)) +
         ease_aes('linear')
 ```
 ```{r}
-#Creating geodata in order to map fires on to a map of brazil
+print("Creating geodata in order to map fires on to a map of brazil")
+```
+
+```{r}
 states = distinct(amazon, state)
 states_df <- as.data.frame(states)
 states_df$country <- "Brazil" 
 states_df$location <- paste(states_df$state, states_df$country, sep=",")
 location_df <- mutate_geocode(states_df, location)
 ```
-```{r, echo=FALSE}
+```{r}
 # give state boundaries a white border
 l <- list(color = toRGB("white"), width = 2)
 # specify some map projection/options
@@ -93,13 +125,19 @@ g <- list(
         subunitwidth = 1,
         countrywidth = 1,
         subunitcolor = toRGB("white"),
-        countrycolor = toRGB("white")
-)
+        countrycolor = toRGB("white"))
+```
+
+```{r}
 #adding lon $ lat data back to dataframe
 df.amazon$lon <- location_df$lon
 df.amazon$lat <- location_df$lat
+```
+```{r}
+print("Geo plot of Brazil and it's fires by state")
+```
 
-#Geol plot of Brazil and it's fires by state
+```{r,echo=FALSE}
 plot_geo(df.amazon, locationmode = 'country names') %>%
         add_markers(
                 x = ~lon, y = ~lat, size = ~year, color = ~fires,  hoverinfo = "text",
