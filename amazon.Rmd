@@ -1,5 +1,10 @@
 ---
 title: "Untitled"
+knit: (function(input_file, encoding) {
+  out_dir <- '';
+  rmarkdown::render(input_file,
+ encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'index.html'))})
 output: html_document
 ---
 
@@ -7,22 +12,108 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+```{r amazon}
+library(tidyverse)
+library(ggplot2)
+library(plotly)
+library(ggmap)
+library(gganimate)
+```
+```{r data, echo=FALSE}
+amazon = read.csv('~/amazon/amazon.csv')
+```
+```{r}
+str(amazon)
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
 ```
 
-## Including Plots
+```{r}
+summary(amazon)
 
-You can also embed plots, for example:
+```
+```{r}
+glimpse(amazon)
 
-```{r pressure, echo=FALSE}
-plot(pressure)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r, echo=FALSE}
+#Visualizing Data
+a <- ggplot(amazon,aes(year,number))
+a + geom_bar(stat='identity',aes(fill = state))
+```
+```{r}
+#Line graph showing the amount of forest fires per year
+df.amazon_1 <- amazon %>% group_by(year)%>% 
+        summarise(numberperyear = round(sum(number)))%>% 
+        ggplot(aes(x = year, y = numberperyear)) + geom_line()
+df.amazon_1
+```
+```{r, echo=FALSE}
+#Scatter Plot showing the occource of forest fires by state and year
+plot_ly(x = amazon$year, 
+        y = amazon$state,
+        type = 'scatter',
+        mode = 'markers',
+        size = amazon$number,
+        marker = list(
+          color = amazon$year))
+```
+```{r, echo=FALSE}
+#Bar plot showing the total number of forest fires by region
+plot_ly(data = amazon, x = ~state  , y = ~number, type = 'bar')
+
+```
+```{r}
+#New dataframe with fires sum up by year and state
+df.amazon <- amazon %>% group_by(year, state) %>% summarise(fires = sum(number))
+```
+```{r, echo=FALSE}
+#Heatmap of fires by location and year
+plot_ly(x=df.amazon$year,y=df.amazon$state,z=df.amazon$fires,type ="heatmap")
+```
+```{r, echo=FALSE}
+#An animation showing the amount of fires over the years of each state in brazil
+ggplot(df.amazon, aes(year,fires, size = fires, colour = state)) +
+        geom_point(alpha = 0.7, show.legend = FALSE) +
+        facet_wrap(~state) +
+        labs(title = 'Year: {frame_time}', x = 'Year of fires', y = 'Number of fires') +
+        transition_time(year) +
+        ease_aes('linear')
+```
+```{r}
+#Creating geodata in order to map fires on to a map of brazil
+states = distinct(amazon, state)
+states_df <- as.data.frame(states)
+states_df$country <- "Brazil" 
+states_df$location <- paste(states_df$state, states_df$country, sep=",")
+location_df <- mutate_geocode(states_df, location)
+```
+```{r, echo=FALSE}
+# give state boundaries a white border
+l <- list(color = toRGB("white"), width = 2)
+# specify some map projection/options
+g <- list(
+        scope = 'south america',
+        projection = list(type = 'equirectangular'),
+        showland = TRUE,
+        landcolor = toRGB("gray85"),
+        subunitwidth = 1,
+        countrywidth = 1,
+        subunitcolor = toRGB("white"),
+        countrycolor = toRGB("white")
+)
+#adding lon $ lat data back to dataframe
+df.amazon$lon <- location_df$lon
+df.amazon$lat <- location_df$lat
+
+#Geol plot of Brazil and it's fires by state
+plot_geo(df.amazon, locationmode = 'country names') %>%
+        add_markers(
+                x = ~lon, y = ~lat, size = ~year, color = ~fires,  hoverinfo = "text",
+                text = ~paste(df.amazon$state, "<br />"))%>%
+        colorbar(title = "Number of Amazon Fires") %>%
+        layout(
+                geo = g
+        )
+```
+
